@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Boards from './pages/Boards';
-import Board from './pages/Board';
+import Board from './pages/board/Board';
 import Issues from './pages/Issues';
 
 import Header from './components/Header';
