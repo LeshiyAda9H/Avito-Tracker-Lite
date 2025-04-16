@@ -2,12 +2,12 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Boards from './pages/Boards';
 import Board from './pages/board/Board';
-import Issues from './pages/Issues';
+import Issues from './pages/issues/Issues';
 
 import Header from './components/Header';
 
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       
@@ -22,4 +22,3 @@ function App() {
     </BrowserRouter>
   );
 }
-export default App;
