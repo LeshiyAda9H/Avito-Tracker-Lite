@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Container, Typography, TextField, Select, MenuItem, FormControl, InputLabel, Card, CardContent, Button, Box } from '@mui/material';
-import { initialIssues, Issue, boards } from './data';
+import { initialIssues, boards } from './data';
 import { containerStyle, filtersStyle, cardStyle, createButtonStyle, emptyStateStyle } from './styles';
+import { useTaskForm } from '../../hooks/useTaskForm';
+import { Task } from '../../data/taskFormData';
 
 export default function Issues() {
   const [search, setSearch] = useState(''); // Поиск по названию проекта
   const [executorSearch, setExecutorSearch] = useState(''); // Поиск по исполнителю
   const [statusFilter, setStatusFilter] = useState('All'); // Фильтр по статусу
   const [boardFilter, setBoardFilter] = useState('All'); // Фильтр по доске
+  const { openModal } = useTaskForm();
 
   // Функция для фильтрации задач
   const filteredIssues = initialIssues.filter((issue) => {
@@ -18,14 +21,8 @@ export default function Issues() {
     return matchesSearch && matchesExecutor && matchesStatus && matchesBoard;
   });
 
-  // Обработчик клика по задаче
-  const handleIssueClick = (issue: Issue) => {
-    console.log(`Редактировать задачу: ${issue.title}`);
-  };
-
-  // Обработчик для кнопки "Создать задачу"
-  const handleCreateTask = () => {
-    console.log('Открыть форму создания задачи');
+  const handleIssueClick = (task: Task) => {
+    openModal(task); // Открываем форму для редактирования
   };
 
   return (
@@ -103,7 +100,7 @@ export default function Issues() {
           
           <Button
             variant="contained"
-            onClick={handleCreateTask}
+            onClick={() => openModal()}
             sx={{ marginTop: 2 }}
           >
             Создать задачу
@@ -130,7 +127,7 @@ export default function Issues() {
 
           <Button
             variant="contained"
-            onClick={handleCreateTask}
+            onClick={() => openModal()}
             sx={createButtonStyle}
           >
             Создать задачу

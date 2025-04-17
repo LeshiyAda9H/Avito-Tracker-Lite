@@ -1,19 +1,43 @@
 import { useParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Typography, Box, Card, CardContent } from '@mui/material';
 import { initialData } from './data';
-import {
-  containerStyle,
-  boardStyle,
-  columnStyle,
-  droppableStyle,
-  cardStyle,
-} from './styles';
+import { containerStyle, boardStyle, columnStyle, droppableStyle, cardStyle } from './styles';
+import { useTaskForm } from '../../hooks/useTaskForm';
+import { Task } from '../../data/taskFormData';
 
 export default function Board() {
   const { id } = useParams<{ id: string }>(); // Получаем id проекта из URL
+  const { openModal } = useTaskForm();
   const [data, setData] = useState(initialData);
+
+  // Фильтруем задачи по boardId при загрузке
+  useEffect(() => {
+    const filteredTasks = Object.values(initialData.tasks).filter(
+      (task) => task.boardId === id
+    );
+    const tasksMap = filteredTasks.reduce((acc, task) => {
+      acc[task.id] = task;
+      return acc;
+    }, {} as { [key: string]: Task });
+
+    const columns = { ...initialData.columns };
+    Object.keys(columns).forEach((columnId) => {
+      columns[columnId] = {
+        ...columns[columnId],
+        taskIds: filteredTasks
+          .filter((task) => task.status === columns[columnId].title)
+          .map((task) => task.id),
+      };
+    });
+
+    setData({
+      ...initialData,
+      tasks: tasksMap,
+      columns,
+    });
+  }, [id]);
 
   // Функция для обработки перетаскивания задач
   const onDragEnd = (result: DropResult) => {
@@ -60,14 +84,25 @@ export default function Board() {
       taskIds: finishTaskIds,
     };
 
+    // Обновляем статус задачи
+    const task = data.tasks[result.draggableId];
+    const updatedTask = { ...task, status: finish.title };
     setData({
       ...data,
+      tasks: {
+        ...data.tasks,
+        [task.id]: updatedTask,
+      },
       columns: {
         ...data.columns,
         [newStart.id]: newStart,
         [newFinish.id]: newFinish,
       },
     });
+  };
+
+  const handleTaskClick = (task: Task) => {
+    openModal(task, id);
   };
 
   return (
@@ -88,7 +123,7 @@ export default function Board() {
             const column = data.columns[columnId];
             const tasks = column.taskIds
               .map((taskId) => data.tasks[taskId])
-              .filter((task): task is { id: string; content: string } => task !== undefined);
+              .filter((task): task is Task => task !== undefined);
 
             return (
               <Box key={column.id} sx={columnStyle}>
@@ -111,13 +146,14 @@ export default function Board() {
                           {(provided) => (
                             
                             <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              sx={cardStyle}
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            sx={cardStyle}
+                            onClick={() => handleTaskClick(task)}
                             >
                               <CardContent>
-                                <Typography>{task.content}</Typography>
+                                <Typography>{task.title}</Typography>
                               </CardContent>
 
                             </Card>

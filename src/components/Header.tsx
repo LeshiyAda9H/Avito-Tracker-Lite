@@ -1,11 +1,10 @@
 import { AppBar, Toolbar, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { useTaskForm } from '../hooks/useTaskForm';
 
 export default function Header() {
   
-  const handleCreateTask = () => {
-    console.log('Открыть форму создания задачи');
-  };
+  const { openModal } = useTaskForm();
 
   return (
     <AppBar position="static">
@@ -20,8 +19,9 @@ export default function Header() {
           Проекты
         </Button>
         
-        <div style={{ flexGrow: 1 }} /> {/* Пространство, чтобы кнопка "Создать задачу" была справа */}
-        <Button color="inherit" onClick={handleCreateTask}>
+        <div style={{ flexGrow: 1 }} />
+        
+        <Button color="inherit" onClick={() => openModal()}>
           Создать задачу
         </Button>
 
