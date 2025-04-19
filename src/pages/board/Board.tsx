@@ -2,47 +2,150 @@ import { useParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useState, useEffect } from 'react';
 import { Container, Typography, Box, Card, CardContent } from '@mui/material';
-import { initialData } from './data';
-import { containerStyle, boardStyle, columnStyle, droppableStyle, cardStyle } from './styles';
+import { fetchTasksOnBoard, updateTaskStatus, fetchBoards } from '../../api/api';
 import { useTaskForm } from '../../hooks/useTaskForm';
-import { Task } from '../../data/taskFormData';
+import { Task, type Board } from '../../data/taskFormData';
+import { containerStyle, boardStyle, columnStyle, droppableStyle, cardStyle } from './styles';
+
+interface Column {
+  id: string;
+  title: string;
+  taskIds: string[];
+}
+
+interface BoardData {
+  tasks: { [key: string]: Task };
+  columns: { [key: string]: Column };
+  columnOrder: string[];
+}
 
 export default function Board() {
-  const { id } = useParams<{ id: string }>(); // Получаем id проекта из URL
+  
+  const { boardId: boardIdParam } = useParams<{ boardId: string }>();
+  const boardId = boardIdParam ? parseInt(boardIdParam, 10) : 0;
   const { openModal } = useTaskForm();
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState<BoardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [board, setBoard] = useState<Board | null>(null);
 
-  // Фильтруем задачи по boardId при загрузке
   useEffect(() => {
-    const filteredTasks = Object.values(initialData.tasks).filter(
-      (task) => task.boardId === id
-    );
-    const tasksMap = filteredTasks.reduce((acc, task) => {
-      acc[task.id] = task;
-      return acc;
-    }, {} as { [key: string]: Task });
-
-    const columns = { ...initialData.columns };
-    Object.keys(columns).forEach((columnId) => {
-      columns[columnId] = {
-        ...columns[columnId],
-        taskIds: filteredTasks
-          .filter((task) => task.status === columns[columnId].title)
-          .map((task) => task.id),
-      };
-    });
-
-    setData({
-      ...initialData,
-      tasks: tasksMap,
-      columns,
-    });
-  }, [id]);
-
-  // Функция для обработки перетаскивания задач
-  const onDragEnd = (result: DropResult) => {
     
-    const { source, destination } = result;
+    const abortController = new AbortController();
+
+    const loadBoardData = async () => {
+      
+      if (!boardId) {
+        setError('Неверный ID доски');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const fetchedBoards = await fetchBoards();
+        const currentBoard = fetchedBoards.find((b) => b.id === boardId);
+        
+        if (currentBoard) {
+          setBoard(currentBoard);
+        }
+      } 
+      catch (err) {
+        
+        if (!abortController.signal.aborted) {
+          console.error('Ошибка при загрузке данных доски:', err);
+        }
+      }
+    };
+
+    loadBoardData();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [boardId]);
+
+  useEffect(() => {
+    
+    const abortController = new AbortController();
+
+    const loadTasks = async () => {
+      
+      if (!boardId) {
+        setError('Неверный ID доски');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        
+        setIsLoading(true);
+        setError(null);
+        
+        const tasks = await fetchTasksOnBoard(boardId);
+        if (abortController.signal.aborted) return;
+
+
+        const tasksMap = tasks.reduce((acc, task) => {
+          
+          acc[task.id.toString()] = task;
+          return acc;
+
+        }, {} as { [key: string]: Task });
+
+
+        const columns: { [key: string]: Column } = {
+          
+          Backlog: { id: 'Backlog', title: 'To do', taskIds: [] },
+          InProgress: { id: 'InProgress', title: 'In progress', taskIds: [] },
+          Done: { id: 'Done', title: 'Done', taskIds: [] },
+        };
+
+        tasks.forEach((task) => {
+          
+          const statusKey = task.status;
+          
+          if (columns[statusKey]) {
+            columns[statusKey].taskIds.push(task.id.toString());
+          }
+        });
+
+        setData({
+          tasks: tasksMap,
+          columns,
+          columnOrder: ['Backlog', 'InProgress', 'Done'],
+        });
+      } 
+      catch (err) {
+        
+        if (!abortController.signal.aborted) {
+          console.error('Ошибка при загрузке задач:', err);
+          setError('Не удалось загрузить задачи. Попробуйте снова позже.');
+        }
+      } 
+      finally {
+        
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTasks();
+
+    return () => {
+      abortController.abort();
+    };
+
+  }, [boardId]);
+
+  const onDragEnd = async (result: DropResult) => {
+    
+    if (!data) return;
+
+    const { source, destination, draggableId } = result;
 
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
@@ -51,9 +154,11 @@ export default function Board() {
     const finish = data.columns[destination.droppableId];
 
     if (start === finish) {
+      
       const newTaskIds = Array.from(start.taskIds);
+      
       newTaskIds.splice(source.index, 1);
-      newTaskIds.splice(destination.index, 0, result.draggableId);
+      newTaskIds.splice(destination.index, 0, draggableId);
 
       const newColumn = {
         ...start,
@@ -72,52 +177,88 @@ export default function Board() {
 
     const startTaskIds = Array.from(start.taskIds);
     startTaskIds.splice(source.index, 1);
+    
     const newStart = {
       ...start,
       taskIds: startTaskIds,
     };
 
     const finishTaskIds = Array.from(finish.taskIds);
-    finishTaskIds.splice(destination.index, 0, result.draggableId);
+    finishTaskIds.splice(destination.index, 0, draggableId);
+    
     const newFinish = {
       ...finish,
       taskIds: finishTaskIds,
     };
 
-    // Обновляем статус задачи
-    const task = data.tasks[result.draggableId];
-    const updatedTask = { ...task, status: finish.title };
-    setData({
-      ...data,
-      tasks: {
-        ...data.tasks,
-        [task.id]: updatedTask,
-      },
-      columns: {
-        ...data.columns,
-        [newStart.id]: newStart,
-        [newFinish.id]: newFinish,
-      },
-    });
+    const task = data.tasks[draggableId];
+    const newStatus = finish.id as Task['status'];
+
+    try {
+      
+      await updateTaskStatus(task.id, newStatus);
+      
+      setData({
+        ...data,
+        tasks: {
+          ...data.tasks,
+          [task.id]: { ...task, status: newStatus },
+        },
+        columns: {
+          ...data.columns,
+          [newStart.id]: newStart,
+          [newFinish.id]: newFinish,
+        },
+      });
+    } 
+    catch (err) {
+      console.error('Ошибка при обновлении статуса задачи:', err);
+      setError('Не удалось обновить статус задачи.');
+    }
   };
 
   const handleTaskClick = (task: Task) => {
-    openModal(task, id);
+    openModal(task, boardId);
   };
+
+  if (isLoading) {
+    return (
+      <Container sx={containerStyle}>
+        
+        <Typography variant="h4" gutterBottom>
+          {board ? board.name : `Проект ${boardId}`}
+        </Typography>
+        
+        <Typography>Загрузка...</Typography>
+
+      </Container>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Container sx={containerStyle}>
+        
+        <Typography variant="h4" gutterBottom>
+          {board ? board.name : `Проект ${boardId}`}
+        </Typography>
+        
+        <Typography color="error">{error || 'Данные не найдены'}</Typography>
+
+      </Container>
+    );
+  }
 
   return (
     <Container sx={containerStyle}>
       
-      {/* Заголовок с названием проекта */}
       <Typography variant="h4" gutterBottom>
-        Проект {id}
+        {board ? board.name : `Проект ${boardId}`}
       </Typography>
-
-      {/* Kanban-доска */}
+      
       <DragDropContext onDragEnd={onDragEnd}>
         
         <Box sx={boardStyle}>
-          
           {data.columnOrder.map((columnId) => {
             
             const column = data.columns[columnId];
@@ -141,16 +282,15 @@ export default function Board() {
                       sx={droppableStyle}
                     >
                       {tasks.map((task, index) => (
-                        
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
+                        <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
                           {(provided) => (
                             
                             <Card
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            sx={cardStyle}
-                            onClick={() => handleTaskClick(task)}
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              sx={cardStyle}
+                              onClick={() => handleTaskClick(task)}
                             >
                               <CardContent>
                                 <Typography>{task.title}</Typography>
@@ -158,20 +298,15 @@ export default function Board() {
 
                             </Card>
                           )}
-
                         </Draggable>
                       ))}
 
                       {provided.placeholder}
-                      
                     </Box>
                   )}
-
                 </Droppable>
               </Box>
             );
-
-
           })}
         </Box>
       </DragDropContext>

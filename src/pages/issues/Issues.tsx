@@ -1,29 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Typography, TextField, Select, MenuItem, FormControl, InputLabel, Card, CardContent, Button, Box } from '@mui/material';
-import { initialIssues, boards } from './data';
-import { containerStyle, filtersStyle, cardStyle, createButtonStyle, emptyStateStyle } from './styles';
 import { useTaskForm } from '../../hooks/useTaskForm';
-import { Task } from '../../data/taskFormData';
+import { Task, Board } from '../../data/taskFormData';
+import { fetchTasks, fetchBoards } from '../../api/api';
+import { toDisplayStatus } from '../../utils/statusMapping';
+import { containerStyle, filtersStyle, cardStyle, createButtonStyle, emptyStateStyle } from './styles';
 
 export default function Issues() {
-  const [search, setSearch] = useState(''); // Поиск по названию проекта
-  const [executorSearch, setExecutorSearch] = useState(''); // Поиск по исполнителю
-  const [statusFilter, setStatusFilter] = useState('All'); // Фильтр по статусу
-  const [boardFilter, setBoardFilter] = useState('All'); // Фильтр по доске
+  
+  const [search, setSearch] = useState('');
+  const [executorSearch, setExecutorSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
+  const [boardFilter, setBoardFilter] = useState<number | 'All'>('All');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { openModal } = useTaskForm();
 
-  // Функция для фильтрации задач
-  const filteredIssues = initialIssues.filter((issue) => {
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        
+        const [fetchedTasks, fetchedBoards] = await Promise.all([
+          fetchTasks(),
+          fetchBoards(),
+        ]);
+        
+        if (!abortController.signal.aborted) {
+          setTasks(fetchedTasks);
+          setBoards(fetchedBoards);
+        }
+      } 
+      catch (error) {
+        
+        if (!abortController.signal.aborted) {
+          console.error('Ошибка при загрузке данных:', error);
+          setTasks([]);
+          setBoards([]);
+        }
+      } 
+      finally {
+        
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    loadData();
+
+    return () => {
+      abortController.abort();
+    };
+  }, []);
+
+  const filteredIssues = tasks.filter((issue) => {
+    
     const matchesSearch = issue.title.toLowerCase().includes(search.toLowerCase());
-    const matchesExecutor = issue.executor.toLowerCase().includes(executorSearch.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || issue.status === statusFilter;
+    const matchesExecutor = issue.assignee.fullName.toLowerCase().includes(executorSearch.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || toDisplayStatus(issue.status) === statusFilter;
     const matchesBoard = boardFilter === 'All' || issue.boardId === boardFilter;
+    
     return matchesSearch && matchesExecutor && matchesStatus && matchesBoard;
   });
 
   const handleIssueClick = (task: Task) => {
-    openModal(task); // Открываем форму для редактирования
+    openModal(task);
   };
+
+  if (isLoading) {
+    return (
+      <Container sx={containerStyle}>
+        <Typography>Загрузка...</Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container sx={containerStyle}>
@@ -31,11 +84,9 @@ export default function Issues() {
       <Typography variant="h4" gutterBottom>
         Все задачи
       </Typography>
-
       
       <Box sx={filtersStyle}>
         
-        {/* Поиск */}
         <TextField
           label="Поиск по названию"
           variant="outlined"
@@ -43,7 +94,7 @@ export default function Issues() {
           onChange={(e) => setSearch(e.target.value)}
           sx={{ flex: 1 }}
         />
-
+        
         <TextField
           label="Поиск по исполнителю"
           variant="outlined"
@@ -51,48 +102,44 @@ export default function Issues() {
           onChange={(e) => setExecutorSearch(e.target.value)}
           sx={{ flex: 1 }}
         />
-
-        {/* Фильтры */}
+        
         <FormControl sx={{ width: 200 }}>
-
+          
           <InputLabel>Статус</InputLabel>
-
+          
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             label="Статус"
           >
             <MenuItem value="All">Все</MenuItem>
-            <MenuItem value="To Do">To Do</MenuItem>
-            <MenuItem value="In Progress">In Progress</MenuItem>
+            <MenuItem value="To do">To do</MenuItem>
+            <MenuItem value="In progress">In progress</MenuItem>
             <MenuItem value="Done">Done</MenuItem>
-
           </Select>
 
         </FormControl>
-
-
+        
         <FormControl sx={{ width: 200 }}>
           
           <InputLabel>Доска</InputLabel>
           
           <Select
             value={boardFilter}
-            onChange={(e) => setBoardFilter(e.target.value)}
+            onChange={(e) => setBoardFilter(e.target.value as number | 'All')}
             label="Доска"
           >
+            <MenuItem value="All">Все</MenuItem>
             {boards.map((board) => (
               <MenuItem key={board.id} value={board.id}>
-                {board.title}
+                {board.name}
               </MenuItem>
             ))}
-
           </Select>
 
         </FormControl>
       </Box>
-      
-      {/* Список задач */}
+
       {filteredIssues.length === 0 ? (
         <Box sx={emptyStateStyle}>
           
@@ -109,22 +156,25 @@ export default function Issues() {
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          
           {filteredIssues.map((issue) => (
+            
             <Card
               key={issue.id}
               sx={cardStyle}
               onClick={() => handleIssueClick(issue)}
             >
               <CardContent>
+                
                 <Typography variant="h6">{issue.title}</Typography>
-                <Typography color="textSecondary">Статус: {issue.status}</Typography>
-                <Typography color="textSecondary">Доска: Проект {issue.boardId}</Typography>
-                <Typography color="textSecondary">Исполнитель: {issue.executor}</Typography>
-              </CardContent>
+                <Typography color="textSecondary">Статус: {toDisplayStatus(issue.status)}</Typography>
+                <Typography color="textSecondary">Доска: {issue.boardName || `Проект ${issue.boardId}`}</Typography>
+                <Typography color="textSecondary">Исполнитель: {issue.assignee.fullName}</Typography>
 
+              </CardContent>
             </Card>
           ))}
-
+          
           <Button
             variant="contained"
             onClick={() => openModal()}
@@ -132,7 +182,7 @@ export default function Issues() {
           >
             Создать задачу
           </Button>
-
+          
         </Box>
       )}
     </Container>
