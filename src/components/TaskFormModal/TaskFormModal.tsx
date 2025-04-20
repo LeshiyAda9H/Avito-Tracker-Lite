@@ -157,6 +157,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   };
 
   const isOnIssuesPage = location.pathname === '/issues';
+  const showGoToBoardButton = isEditMode && isOnIssuesPage && formData.boardId;
 
   if (isLoading) {
     return (
@@ -301,8 +302,8 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
           </FormControl>
 
 
-          <Box sx={buttonContainerStyle}>
-            {isEditMode && isOnIssuesPage && formData.boardId ? (
+          <Box sx={{ ...buttonContainerStyle, justifyContent: showGoToBoardButton ? 'space-between' : 'center' }}>
+            {showGoToBoardButton ? (
               <Button
                 variant="outlined"
                 onClick={handleGoToBoard}
@@ -319,8 +320,8 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             >
               {isEditMode ? 'Обновить' : 'Создать'}
             </Button>
-
           </Box>
+
         </Box>
       </Box>
     </Modal>

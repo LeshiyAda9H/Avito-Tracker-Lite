@@ -21,7 +21,7 @@ export const formStyle: SxProps<Theme> = {
 export const buttonContainerStyle: SxProps<Theme> = {
   display: 'flex',
   justifyContent: 'space-between',
-  marginTop: 2,
+  marginTop: 1,
 };
 
 export const goToBoardButtonStyle: SxProps<Theme> = {

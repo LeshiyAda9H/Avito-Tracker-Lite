@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Container, Typography, TextField, Select, MenuItem, FormControl, InputLabel, Card, CardContent, Button, Box } from '@mui/material';
 import { useTaskForm } from '../../hooks/useTaskForm';
 import { Task, Board } from '../../data/taskFormData';
@@ -12,49 +13,20 @@ export default function Issues() {
   const [executorSearch, setExecutorSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
   const [boardFilter, setBoardFilter] = useState<number | 'All'>('All');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: fetchTasks,
+    select: (data) => data.filter((task): task is Task => task !== undefined && typeof task.id === 'number'),
+  });
+
+  const { data: boards = [], isLoading: isLoadingBoards } = useQuery({
+    queryKey: ['boards'],
+    queryFn: fetchBoards,
+    select: (data) => data.filter((board): board is Board => board !== undefined && typeof board.id === 'number'),
+  });
+  
   const { openModal } = useTaskForm();
-
-  useEffect(() => {
-    const abortController = new AbortController();
-
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        
-        const [fetchedTasks, fetchedBoards] = await Promise.all([
-          fetchTasks(),
-          fetchBoards(),
-        ]);
-        
-        if (!abortController.signal.aborted) {
-          setTasks(fetchedTasks);
-          setBoards(fetchedBoards);
-        }
-      } 
-      catch (error) {
-        
-        if (!abortController.signal.aborted) {
-          console.error('Ошибка при загрузке данных:', error);
-          setTasks([]);
-          setBoards([]);
-        }
-      } 
-      finally {
-        
-        if (!abortController.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-    loadData();
-
-    return () => {
-      abortController.abort();
-    };
-  }, []);
 
   const filteredIssues = tasks.filter((issue) => {
     
@@ -69,6 +41,8 @@ export default function Issues() {
   const handleIssueClick = (task: Task) => {
     openModal(task);
   };
+
+  const isLoading = isLoadingTasks || isLoadingBoards;
 
   if (isLoading) {
     return (
