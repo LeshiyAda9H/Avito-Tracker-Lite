@@ -2,6 +2,8 @@ import axios from 'axios';
 import { Task, Board, User } from '../data/taskFormData';
 
 const API_URL = 'http://127.0.0.1:8083/api/v1';
+// const API_URL = 'http://server:8083/api/v1';
+// const API_URL = '/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_URL,
