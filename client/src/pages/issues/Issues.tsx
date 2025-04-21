@@ -8,7 +8,9 @@ import { fetchAllTasks, fetchAllBoards, RootState, ThunkAppDispatch } from '../.
 import { toDisplayStatus } from '../../utils/statusMapping';
 import { containerStyle, filtersStyle, cardStyle, emptyStateStyle, createButtonStyle } from './styles';
 
+// Компонент для отображения и фильтрации всех задач
 export default function Issues() {
+  // Состояния для фильтров и поиска
   const [search, setSearch] = useState('');
   const [executorSearch, setExecutorSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | 'All'>('All');
@@ -22,12 +24,13 @@ export default function Issues() {
   const error = useSelector((state: RootState) => state.tasks.error);
   const { openModal } = useTaskForm();
 
+  // Загрузка задач и досок при монтировании
   useEffect(() => {
     dispatch(fetchAllTasks());
     dispatch(fetchAllBoards());
   }, [dispatch]);
 
-  // Логика для отображения кнопки "Наверх"
+  // Показ/скрытие кнопки "Наверх" в зависимости от прокрутки
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 300) {
@@ -36,11 +39,11 @@ export default function Issues() {
         setShowScrollToTop(false);
       }
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Фильтрация задач на основе критериев поиска и фильтров
   const filteredIssues = tasks.filter((issue) => {
     const matchesSearch = issue.title?.toLowerCase().includes(search.toLowerCase()) ?? false;
     const matchesExecutor = issue.assignee?.fullName?.toLowerCase().includes(executorSearch.toLowerCase()) ?? false;
@@ -49,14 +52,17 @@ export default function Issues() {
     return matchesSearch && matchesExecutor && matchesStatus && matchesBoard;
   });
 
+  // Открытие модального окна задачи при клике
   const handleIssueClick = (task: Task) => {
     openModal(task, undefined);
   };
 
+  // Прокрутка наверх с плавной анимацией
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Рендеринг состояния загрузки
   if (isLoading && tasks.length === 0) {
     return (
       <Container sx={containerStyle}>
@@ -65,6 +71,7 @@ export default function Issues() {
     );
   }
 
+  // Рендеринг состояния ошибки
   if (error) {
     return (
       <Container sx={containerStyle}>
@@ -73,14 +80,13 @@ export default function Issues() {
     );
   }
 
+  // Рендеринг успешного состояния с фильтрами и списком задач
   return (
     <Container sx={containerStyle}>
       <Typography variant="h4" gutterBottom>
         Все задачи
       </Typography>
-      
       <Box sx={filtersStyle}>
-        
         <TextField
           label="Поиск по названию"
           variant="outlined"
@@ -88,7 +94,6 @@ export default function Issues() {
           onChange={(e) => setSearch(e.target.value)}
           sx={{ flex: 1 }}
         />
-        
         <TextField
           label="Поиск по исполнителю"
           variant="outlined"
@@ -96,11 +101,8 @@ export default function Issues() {
           onChange={(e) => setExecutorSearch(e.target.value)}
           sx={{ flex: 1 }}
         />
-        
         <FormControl sx={{ width: 200 }}>
-          
           <InputLabel>Статус</InputLabel>
-          
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -112,11 +114,8 @@ export default function Issues() {
             <MenuItem value="Done">Done</MenuItem>
           </Select>
         </FormControl>
-        
         <FormControl sx={{ width: 200 }}>
-          
           <InputLabel>Доска</InputLabel>
-          
           <Select
             value={boardFilter}
             onChange={(e) => setBoardFilter(e.target.value as number | 'All')}
@@ -129,14 +128,11 @@ export default function Issues() {
               </MenuItem>
             ))}
           </Select>
-
         </FormControl>
       </Box>
       {filteredIssues.length === 0 ? (
         <Box sx={emptyStateStyle}>
-          
           <Typography>Задачи не найдены</Typography>
-          
           <Button
             variant="contained"
             onClick={() => openModal(undefined, undefined)}
@@ -144,26 +140,19 @@ export default function Issues() {
           >
             Создать задачу
           </Button>
-
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {filteredIssues.map((issue) => (
-            <Card
-              key={issue.id}
-              sx={cardStyle}
-              onClick={() => handleIssueClick(issue)}
-            >
+            <Card key={issue.id} sx={cardStyle} onClick={() => handleIssueClick(issue)}>
               <CardContent>
                 <Typography variant="h6">{issue.title ?? 'Без названия'}</Typography>
                 <Typography color="textSecondary">Статус: {toDisplayStatus(issue.status)}</Typography>
                 <Typography color="textSecondary">Доска: {issue.boardName || `Проект ${issue.boardId}`}</Typography>
                 <Typography color="textSecondary">Исполнитель: {issue.assignee?.fullName ?? 'Не назначен'}</Typography>
               </CardContent>
-
             </Card>
           ))}
-          
           <Button
             variant="contained"
             onClick={() => openModal(undefined, undefined)}
@@ -171,7 +160,6 @@ export default function Issues() {
           >
             Создать задачу
           </Button>
-
         </Box>
       )}
       {showScrollToTop && (
@@ -179,17 +167,18 @@ export default function Issues() {
           color="primary"
           aria-label="scroll to top"
           onClick={scrollToTop}
-          sx={{
-            position: 'fixed',
-            bottom: 16,
-            right: 16,
-          }}
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
         >
-          
           <ArrowUpwardIcon />
-          
         </Fab>
       )}
     </Container>
   );
 }
+
+/*
+Предложения по улучшению:
+1. **Дебансинг**: Добавить дебансинг для полей поиска, чтобы уменьшить количество вызовов фильтрации.
+2. **Локализация**: Вынести строки в систему локализации.
+3. **Виртуализация**: Использовать виртуализированный список (например, react-virtualized) для больших списков задач.
+*/

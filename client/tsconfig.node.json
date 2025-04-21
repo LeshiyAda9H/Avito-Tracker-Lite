@@ -1,24 +1,46 @@
 {
   "compilerOptions": {
+    // Путь для хранения информации о сборке
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    // Целевая версия ECMAScript
     "target": "ES2022",
+    // Библиотеки для поддержки (ES2023)
     "lib": ["ES2023"],
-    "module": "ESNext",
+    // Пропуск проверки деклараций библиотек
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    /* Режим сборки */
+    // Режим разрешения модулей для бандлеров
     "moduleResolution": "bundler",
+    // Разрешить импорт .ts/.tsx расширений
     "allowImportingTsExtensions": true,
+    // Изоляция модулей для Vite
     "isolatedModules": true,
+    // Принудительное определение модулей
     "moduleDetection": "force",
+    // Отключение генерации JS файлов
     "noEmit": true,
 
-    /* Linting */
+    /* Проверка кода */
+    // Строгая типизация
     "strict": true,
+    // Запрет неиспользуемых локальных переменных
     "noUnusedLocals": true,
+    // Запрет неиспользуемых параметров
     "noUnusedParameters": true,
+    // Запрет "проваливания" в switch
     "noFallthroughCasesInSwitch": true,
+    // Проверка побочных эффектов импортов
     "noUncheckedSideEffectImports": true
   },
+  // Включение конфигурационного файла Vite
   "include": ["vite.config.ts"]
 }
+
+/*
+Предложения по улучшению:
+1. **Оптимизация**: Уточнить lib (например, использовать только ES2022, если ES2023 избыточен).
+2. **Документация**: Добавить комментарии с описанием каждого compilerOptions.
+3. **Расширения**: Рассмотреть добавление других конфигурационных файлов (например, для Jest).
+4. **Кэширование**: Убедиться, что tsBuildInfoFile корректно очищается в CI/CD.
+*/

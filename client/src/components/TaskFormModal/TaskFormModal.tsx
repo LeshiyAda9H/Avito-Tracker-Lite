@@ -6,25 +6,30 @@ import { fetchBoards, fetchUsers } from '../../api/api';
 import { toDisplayStatus, toServerStatus, DisplayStatus } from '../../utils/statusMapping';
 import { modalStyle, formStyle, buttonContainerStyle, goToBoardButtonStyle } from './styles';
 
+// Интерфейс пропсов для компонента модального окна формы задачи
 interface TaskFormModalProps {
-  open: boolean;
-  onClose: () => void;
-  task?: Task | null;
-  boardId?: number;
-  onSave: (task: Task) => void;
+  open: boolean; // Флаг открытия модального окна
+  onClose: () => void; // Callback для закрытия модального окна
+  task?: Task | null; // Данные задачи для редактирования (опционально)
+  boardId?: number; // Идентификатор доски (опционально)
+  onSave: (task: Task) => void; // Callback для сохранения задачи
 }
 
+// Компонент модального окна для создания или редактирования задачи
 export default function TaskFormModal({ open, onClose, task, boardId, onSave }: TaskFormModalProps) {
-  
+  // Флаг режима редактирования (true, если задача передана)
   const isEditMode = !!task;
+  // Получение текущего пути и функции навигации
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Получение черновика формы из localStorage
   const getDraft = (): Task | null => {
     const draft = localStorage.getItem('taskFormDraft');
     return draft ? JSON.parse(draft) : null;
   };
 
+  // Инициализация состояния формы данными задачи, черновика или начальными значениями
   const [formData, setFormData] = useState<Task>(() => {
     if (task) return { ...task };
 
@@ -43,20 +48,24 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
     };
   });
 
+  // Состояния для данных досок, пользователей и загрузки
   const [boards, setBoards] = useState<Board[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Сохранение черновика формы в localStorage при изменении данных
   useEffect(() => {
     if (open && !isEditMode && !boardId) {
       localStorage.setItem('taskFormDraft', JSON.stringify(formData));
     }
   }, [formData, open, isEditMode, boardId]);
 
+  // Очистка черновика из localStorage
   const clearDraft = () => {
     localStorage.removeItem('taskFormDraft');
   };
 
+  // Загрузка данных о досках и пользователях при открытии модального окна
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -78,31 +87,27 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             }));
           }
         }
-      } 
-      catch (error) {
+      } catch (error) {
         console.error('Ошибка при загрузке данных:', error);
         setBoards([]);
         setUsers([]);
-      } 
-      finally {
+      } finally {
         setIsLoading(false);
       }
     };
 
     if (open) loadData();
-    
   }, [open, boardId]);
 
+  // Обновление данных формы при изменении задачи или boardId
   useEffect(() => {
     if (task) {
       setFormData(task);
-    } 
-    else {
+    } else {
       const draft = getDraft();
       if (draft && !boardId) {
         setFormData(draft);
-      } 
-      else {
+      } else {
         setFormData({
           id: 0,
           title: '',
@@ -116,10 +121,12 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
     }
   }, [task, boardId]);
 
+  // Обработчик изменения полей формы
   const handleChange = (field: keyof Task, value: string | number | Task['assignee']) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Обработчик отправки формы
   const handleSubmit = () => {
     const newTask: Task = {
       ...formData,
@@ -132,32 +139,34 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
     onClose();
   };
 
+  // Переход на страницу доски
   const handleGoToBoard = () => {
-
     if (formData.boardId) {
       navigate(`/board/${formData.boardId}`);
       onClose();
     }
   };
 
+  // Обработчик закрытия модального окна
   const handleClose = () => {
     if (isEditMode) clearDraft();
     onClose();
   };
 
+  // Проверка, находится ли пользователь на странице /issues
   const isOnIssuesPage = location.pathname === '/issues';
+  // Показ кнопки "Перейти на доску" только в режиме редактирования на странице /issues
   const showGoToBoardButton = isEditMode && isOnIssuesPage && formData.boardId;
-  // Блокируем селектор только при редактировании на /issues или если boardId передан (например, на /board/:boardId)
+  // Блокировка селектора доски при редактировании на /issues или если boardId передан
   const isBoardSelectorDisabled = (isOnIssuesPage && isEditMode) || !!boardId;
 
+  // Рендеринг состояния загрузки
   if (isLoading) {
     return (
       <Modal open={open} onClose={handleClose}>
-        
         <Box sx={modalStyle}>
           <Typography>Загрузка...</Typography>
         </Box>
-
       </Modal>
     );
   }
@@ -165,13 +174,11 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   return (
     <Modal open={open} onClose={handleClose}>
       <Box sx={modalStyle}>
-
         <Typography variant="h6" gutterBottom>
           {isEditMode ? 'Редактирование задачи' : 'Создание задачи'}
         </Typography>
-
         <Box sx={formStyle}>
-          
+          {/* Поле для названия задачи */}
           <TextField
             label="Название задачи"
             value={formData.title}
@@ -179,7 +186,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             fullWidth
             required
           />
-
+          {/* Поле для описания задачи */}
           <TextField
             label="Описание задачи"
             value={formData.description}
@@ -189,16 +196,14 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             fullWidth
             required
           />
-
+          {/* Селектор проекта */}
           <FormControl fullWidth>
-            
             <InputLabel>Проект</InputLabel>
-
             <Select
               value={formData.boardId || ''}
               onChange={(e) => handleChange('boardId', Number(e.target.value))}
               label="Проект"
-              disabled={isBoardSelectorDisabled} // Обновляем условие блокировки
+              disabled={isBoardSelectorDisabled}
               required
             >
               {boards.length === 0 ? (
@@ -213,19 +218,15 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
                 ))
               )}
             </Select>
-
             {isOnIssuesPage && isEditMode && (
               <Typography variant="caption" color="textSecondary">
                 Изменение проекта недоступно при редактировании, сервер не обрабатывает 😕
               </Typography>
             )}
-            
           </FormControl>
-
+          {/* Селектор приоритета */}
           <FormControl fullWidth>
-            
             <InputLabel>Приоритет</InputLabel>
-            
             <Select
               value={formData.priority}
               onChange={(e) => handleChange('priority', e.target.value)}
@@ -237,13 +238,10 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
                 </MenuItem>
               ))}
             </Select>
-
           </FormControl>
-
+          {/* Селектор статуса */}
           <FormControl fullWidth>
-            
             <InputLabel>Статус</InputLabel>
-            
             <Select
               value={toDisplayStatus(formData.status)}
               onChange={(e) => {
@@ -258,14 +256,10 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
                 </MenuItem>
               ))}
             </Select>
-
           </FormControl>
-
-
+          {/* Селектор исполнителя */}
           <FormControl fullWidth>
-            
             <InputLabel>Исполнитель</InputLabel>
-            
             <Select
               value={formData.assignee.id || ''}
               onChange={(e) => {
@@ -289,9 +283,8 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
                 ))
               )}
             </Select>
-
           </FormControl>
-          
+          {/* Кнопки управления */}
           <Box sx={{ ...buttonContainerStyle, justifyContent: showGoToBoardButton ? 'space-between' : 'center' }}>
             {showGoToBoardButton ? (
               <Button
@@ -310,9 +303,17 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
               {isEditMode ? 'Обновить' : 'Создать'}
             </Button>
           </Box>
-          
         </Box>
       </Box>
     </Modal>
   );
 }
+
+/*
+Предложения по улучшению:
+1. **Валидация формы**: Добавить клиентскую валидацию (например, с помощью библиотеки Yup или Formik) для более точной проверки полей.
+2. **Дебансинг сохранения черновика**: Использовать debounce для сохранения черновика в localStorage, чтобы уменьшить количество операций.
+3. **Обработка ошибок**: Добавить уведомления через toast для ошибок загрузки данных (boards/users).
+4. **Локализация**: Вынести строки (например, "Создание задачи") в файл локализации.
+5. **Производительность**: Использовать useMemo для списков приоритетов и статусов, чтобы избежать лишних рендеров.
+*/

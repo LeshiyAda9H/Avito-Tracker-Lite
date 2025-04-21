@@ -1,26 +1,37 @@
 import { ServerStatus } from '../utils/statusMapping';
 
+// Интерфейс для представления доски
 export interface Board {
-  id: number;
-  name: string;
-  description?: string;
-  taskCount?: number;
+  id: number; // Уникальный идентификатор доски
+  name: string; // Название доски
+  description?: string; // Описание доски (опционально)
+  taskCount?: number; // Количество задач на доске (опционально)
 }
 
+// Интерфейс для представления пользователя
 export interface User {
-  id: number;
-  fullName: string;
-  email?: string;
-  avatarUrl?: string;
+  id: number; // Уникальный идентификатор пользователя
+  fullName: string; // Полное имя пользователя
+  email?: string; // Электронная почта пользователя (опционально)
+  avatarUrl?: string; // URL аватара пользователя (опционально)
 }
 
+// Интерфейс для представления задачи
 export interface Task {
-  id: number;
-  title: string;
-  description: string;
-  boardId: number;
-  boardName?: string;
-  priority: 'Low' | 'Medium' | 'High';
-  status: ServerStatus;
-  assignee: User;
+  id: number; // Уникальный идентификатор задачи
+  title: string; // Название задачи
+  description: string; // Описание задачи
+  boardId: number; // Идентификатор доски, к которой привязана задача
+  boardName?: string; // Название доски (опционально)
+  priority: 'Low' | 'Medium' | 'High'; // Приоритет задачи
+  status: ServerStatus; // Статус задачи (серверный формат)
+  assignee: User; // Исполнитель задачи
 }
+
+/*
+Предложения по улучшению:
+1. **Типизация статусов**: Вынести строковые литералы для priority в отдельный enum для большей строгости.
+2. **Документация**: Добавить JSDoc для каждого интерфейса, описывающий назначение полей.
+3. **Валидация**: Добавить проверку типов на этапе компиляции (например, с помощью Zod) для обеспечения целостности данных.
+4. **Расширяемость**: Рассмотреть добавление дополнительных полей (например, createdAt, updatedAt) для задач.
+*/

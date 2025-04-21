@@ -1,36 +1,48 @@
 services:
+  # Сервис для клиентской части приложения
   client:
     build:
-      context: ./client
-      dockerfile: Dockerfile
+      context: ./client # Папка с исходным кодом клиента
+      dockerfile: Dockerfile # Имя Dockerfile для сборки
     ports:
-      - "80:80"
+      - "80:80" # Проксирование порта 80 хоста на порт 80 контейнера
     depends_on:
       server:
-        condition: service_healthy
+        condition: service_healthy # Ожидание успешного запуска сервера
     networks:
-      - app-network
+      - app-network # Подключение к общей сети
 
+  # Сервис для серверной части приложения
   server:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      context: ./server # Папка с исходным кодом сервера
+      dockerfile: Dockerfile # Имя Dockerfile для сборки
     ports:
-      - "8083:8083"
+      - "8083:8083" # Проксирование порта 8083 хоста на порт 8083 контейнера
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8083"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      test: ["CMD", "nc", "-z", "localhost", "8083"] # Проверка доступности порта 8083
+      interval: 10s # Интервал проверки
+      timeout: 5s # Таймаут ожидания ответа
+      retries: 10 # Количество попыток
+      start_period: 30s # Период ожидания перед первой проверкой
     volumes:
-      - db-data:/app
+      - db-data:/app # Подключение тома для хранения данных
     networks:
-      - app-network
+      - app-network # Подключение к общей сети
 
+# Определение сети для связи между сервисами
 networks:
   app-network:
-    driver: bridge
+    driver: bridge # Использование мостовой сети
 
+# Определение тома для персистентного хранения данных
 volumes:
   db-data:
+
+
+# Предложения по улучшению:
+# 1. **Переменные окружения**: Добавить .env файл для настройки портов, API_URL и других параметров.
+# 2. **Логирование**: Настроить логирование для сервисов (например, ограничение размера логов через logging).
+# 3. **Перезапуск**: Добавить политику restart: unless-stopped для автоматического перезапуска сервисов.
+# 4. **Оптимизация томов**: Уточнить назначение тома db-data (например, указать конкретный путь для базы данных).
+# 5. **Безопасность**: Добавить проверку healthcheck для client сервиса.

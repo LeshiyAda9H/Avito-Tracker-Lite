@@ -1,26 +1,52 @@
 {
   "compilerOptions": {
+    // Путь для хранения информации о сборке
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    // Целевая версия ECMAScript
     "target": "ES2020",
+    // Использование define для полей классов
     "useDefineForClassFields": true,
+    // Библиотеки для поддержки (DOM и ES2020)
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // Модульная система
     "module": "ESNext",
+    // Пропуск проверки деклараций библиотек
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    /* Режим сборки */
+    // Режим разрешения модулей для бандлеров
     "moduleResolution": "bundler",
+    // Разрешить импорт .ts/.tsx расширений
     "allowImportingTsExtensions": true,
+    // Изоляция модулей для Vite
     "isolatedModules": true,
+    // Принудительное определение модулей
     "moduleDetection": "force",
+    // Отключение генерации JS файлов
     "noEmit": true,
+    // Поддержка JSX для React
     "jsx": "react-jsx",
 
-    /* Linting */
+    /* Проверка кода */
+    // Строгая типизация
     "strict": true,
+    // Запрет неиспользуемых локальных переменных
     "noUnusedLocals": true,
+    // Запрет неиспользуемых параметров
     "noUnusedParameters": true,
+    // Запрет "проваливания" в switch
     "noFallthroughCasesInSwitch": true,
+    // Проверка побочных эффектов импортов
     "noUncheckedSideEffectImports": true
   },
+  // Включение всех файлов в папке src
   "include": ["src"]
 }
+
+/*
+Предложения по улучшению:
+1. **Оптимизация**: Уточнить lib для исключения ненужных библиотек (например, только DOM и ES2020, если другие не используются).
+2. **Документация**: Добавить комментарии с описанием каждого compilerOptions.
+3. **Расширения**: Рассмотреть добавление include для тестов (например, ["src", "tests"]).
+4. **Кэширование**: Проверить, что tsBuildInfoFile не вызывает конфликтов в CI/CD.
+*/

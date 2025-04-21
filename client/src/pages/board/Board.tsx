@@ -21,38 +21,38 @@ interface BoardData {
   columnOrder: DisplayStatus[];
 }
 
+// Компонент для отображения одной доски с поддержкой перетаскивания задач
 export default function Board() {
+  // Извлечение идентификатора доски из параметров URL
   const { boardId: boardIdParam } = useParams<{ boardId: string }>();
   const boardId = boardIdParam ? parseInt(boardIdParam, 10) : 0;
   const dispatch = useDispatch<ThunkAppDispatch>();
   const { openModal } = useTaskForm();
 
+  // Выборка данных из состояния Redux
   const boards = useSelector((state: RootState) => state.tasks.boards);
   const boardTasks = useSelector((state: RootState) => selectBoardTasksById(state, boardId));
   const isLoading = useSelector((state: RootState) => state.tasks.isLoading);
   const error = useSelector((state: RootState) => state.tasks.error);
 
   const board = boards.find((b) => b.id === boardId) || null;
+  // Локальное состояние для данных доски
   const [data, setData] = useState<BoardData | null>(null);
 
+  // Загрузка досок и задач при монтировании или изменении boardId
   useEffect(() => {
-    
     dispatch(fetchAllBoards());
-    
     if (boardId) {
       dispatch(fetchBoardTasks(boardId));
     }
   }, [boardId, dispatch]);
 
+  // Обновление данных доски при изменении задач
   useEffect(() => {
-    
     if (boardTasks.length) {
-      
       const tasksMap = boardTasks.reduce((acc, task) => {
-        
         acc[task.id.toString()] = task;
         return acc;
-
       }, {} as { [key: string]: Task });
 
       const columns: { [key: string]: Column } = {
@@ -62,9 +62,7 @@ export default function Board() {
       };
 
       boardTasks.forEach((task) => {
-        
         const displayStatus = toDisplayStatus(task.status);
-        
         if (columns[displayStatus]) {
           columns[displayStatus].taskIds.push(task.id.toString());
         }
@@ -78,6 +76,7 @@ export default function Board() {
     }
   }, [boardTasks]);
 
+  // Обработка событий перетаскивания
   const onDragEnd = async (result: DropResult) => {
     if (!data) return;
 
@@ -90,108 +89,75 @@ export default function Board() {
     const finish = data.columns[destination.droppableId as DisplayStatus];
 
     if (start === finish) {
-      
       const newTaskIds = Array.from(start.taskIds);
       newTaskIds.splice(source.index, 1);
       newTaskIds.splice(destination.index, 0, draggableId);
 
-      const newColumn = {
-        ...start,
-        taskIds: newTaskIds,
-      };
-
-      setData({
-        ...data,
-        columns: {
-          ...data.columns,
-          [newColumn.id]: newColumn,
-        },
-      });
-
+      const newColumn = { ...start, taskIds: newTaskIds };
+      setData({ ...data, columns: { ...data.columns, [newColumn.id]: newColumn } });
       return;
     }
 
     const startTaskIds = Array.from(start.taskIds);
     startTaskIds.splice(source.index, 1);
-    const newStart = {
-      ...start,
-      taskIds: startTaskIds,
-    };
+    const newStart = { ...start, taskIds: startTaskIds };
 
     const finishTaskIds = Array.from(finish.taskIds);
     finishTaskIds.splice(destination.index, 0, draggableId);
-    const newFinish = {
-      ...finish,
-      taskIds: finishTaskIds,
-    };
+    const newFinish = { ...finish, taskIds: finishTaskIds };
 
     const task = data.tasks[draggableId];
-    const newStatus = toServerStatus(finish.id); // Преобразуем статус в ServerStatus
+    const newStatus = toServerStatus(finish.id);
 
     try {
       setData({
         ...data,
-        tasks: {
-          ...data.tasks,
-          [task.id]: { ...task, status: newStatus },
-        },
-        columns: {
-          ...data.columns,
-          [newStart.id]: newStart,
-          [newFinish.id]: newFinish,
-        },
+        tasks: { ...data.tasks, [task.id]: { ...task, status: newStatus } },
+        columns: { ...data.columns, [newStart.id]: newStart, [newFinish.id]: newFinish },
       });
-
       await dispatch(updateTaskStatusAsync(task.id, newStatus, boardId));
-
-    } 
-    catch (err) {
+    } catch (err) {
       console.error('Ошибка при обновлении статуса задачи:', err);
       dispatch(fetchBoardTasks(boardId));
     }
   };
 
+  // Открытие модального окна задачи при клике
   const handleTaskClick = (task: Task) => {
     openModal(task, Number(boardId));
   };
 
+  // Рендеринг состояния загрузки
   if (isLoading && !data) {
     return (
       <Container sx={containerStyle}>
-
         <Typography variant="h4" gutterBottom>
           {board ? board.name : `Проект ${boardId}`}
         </Typography>
-
         <Typography>Загрузка...</Typography>
-
       </Container>
     );
   }
 
+  // Рендеринг состояния ошибки
   if (error || !data) {
     return (
       <Container sx={containerStyle}>
-
         <Typography variant="h4" gutterBottom>
           {board ? board.name : `Проект ${boardId}`}
         </Typography>
-
         <Typography color="error">{error || 'Данные не найдены'}</Typography>
-
       </Container>
     );
   }
 
+  // Рендеринг успешного состояния с поддержкой перетаскивания
   return (
     <Container sx={containerStyle}>
-
       <Typography variant="h4" gutterBottom>
         {board ? board.name : `Проект ${boardId}`}
       </Typography>
-
       <DragDropContext onDragEnd={onDragEnd}>
-        
         <Box sx={boardStyle}>
           {data.columnOrder.map((columnId) => {
             const column = data.columns[columnId];
@@ -201,22 +167,15 @@ export default function Board() {
 
             return (
               <Box key={column.id} sx={columnStyle}>
-
                 <Typography variant="h6" gutterBottom>
                   {column.title}
                 </Typography>
-
                 <Droppable droppableId={column.id}>
                   {(provided) => (
-                    <Box
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      sx={droppableStyle}
-                    >
+                    <Box ref={provided.innerRef} {...provided.droppableProps} sx={droppableStyle}>
                       {tasks.map((task, index) => (
                         <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
                           {(provided) => (
-                            
                             <Card
                               ref={provided.innerRef}
                               {...provided.draggableProps}
@@ -227,12 +186,10 @@ export default function Board() {
                               <CardContent>
                                 <Typography>{task.title ?? 'Без названия'}</Typography>
                               </CardContent>
-
                             </Card>
                           )}
                         </Draggable>
                       ))}
-                      
                       {provided.placeholder}
                     </Box>
                   )}
@@ -245,3 +202,10 @@ export default function Board() {
     </Container>
   );
 }
+
+/*
+Предложения по улучшению:
+1. **Производительность**: Использовать useMemo для tasksMap и columns, чтобы избежать лишних вычислений.
+2. **Локализация**: Вынести заголовки статусов в отдельный enum или файл.
+3. **Обработка ошибок**: Добавить уведомления toast для ошибок перетаскивания.
+*/
