@@ -26,13 +26,12 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   };
 
   const [formData, setFormData] = useState<Task>(() => {
-    
     if (task) return { ...task };
-    
+
     const draft = getDraft();
-    
+
     if (draft && !boardId) return draft;
-    
+
     return {
       id: 0,
       title: '',
@@ -42,9 +41,8 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
       status: 'Backlog',
       assignee: { id: 0, fullName: '' },
     };
-
   });
-  
+
   const [boards, setBoards] = useState<Board[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +51,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
     if (open && !isEditMode && !boardId) {
       localStorage.setItem('taskFormDraft', JSON.stringify(formData));
     }
-
   }, [formData, open, isEditMode, boardId]);
 
   const clearDraft = () => {
@@ -62,7 +59,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
 
   useEffect(() => {
     const loadData = async () => {
-      
       try {
         setIsLoading(true);
         const [fetchedBoards, fetchedUsers] = await Promise.all([
@@ -73,9 +69,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
         setUsers(fetchedUsers);
 
         if (boardId) {
-          
           const board = fetchedBoards.find((b) => b.id === boardId);
-          
           if (board) {
             setFormData((prev) => ({
               ...prev,
@@ -96,7 +90,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
     };
 
     if (open) loadData();
-
+    
   }, [open, boardId]);
 
   useEffect(() => {
@@ -104,9 +98,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
       setFormData(task);
     } 
     else {
-      
       const draft = getDraft();
-      
       if (draft && !boardId) {
         setFormData(draft);
       } 
@@ -129,7 +121,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   };
 
   const handleSubmit = () => {
-    
     const newTask: Task = {
       ...formData,
       id: formData.id || 0,
@@ -142,7 +133,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   };
 
   const handleGoToBoard = () => {
-    
+
     if (formData.boardId) {
       navigate(`/board/${formData.boardId}`);
       onClose();
@@ -150,14 +141,14 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
   };
 
   const handleClose = () => {
-    
     if (isEditMode) clearDraft();
-
     onClose();
   };
 
   const isOnIssuesPage = location.pathname === '/issues';
   const showGoToBoardButton = isEditMode && isOnIssuesPage && formData.boardId;
+  // Блокируем селектор только при редактировании на /issues или если boardId передан (например, на /board/:boardId)
+  const isBoardSelectorDisabled = (isOnIssuesPage && isEditMode) || !!boardId;
 
   if (isLoading) {
     return (
@@ -173,13 +164,12 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
 
   return (
     <Modal open={open} onClose={handleClose}>
-      
       <Box sx={modalStyle}>
-        
+
         <Typography variant="h6" gutterBottom>
           {isEditMode ? 'Редактирование задачи' : 'Создание задачи'}
         </Typography>
-        
+
         <Box sx={formStyle}>
           
           <TextField
@@ -189,7 +179,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             fullWidth
             required
           />
-          
+
           <TextField
             label="Описание задачи"
             value={formData.description}
@@ -199,16 +189,16 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             fullWidth
             required
           />
-          
+
           <FormControl fullWidth>
             
             <InputLabel>Проект</InputLabel>
-            
+
             <Select
               value={formData.boardId || ''}
               onChange={(e) => handleChange('boardId', Number(e.target.value))}
               label="Проект"
-              disabled={!!boardId}
+              disabled={isBoardSelectorDisabled} // Обновляем условие блокировки
               required
             >
               {boards.length === 0 ? (
@@ -224,8 +214,13 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
               )}
             </Select>
 
+            {isOnIssuesPage && isEditMode && (
+              <Typography variant="caption" color="textSecondary">
+                Изменение проекта недоступно при редактировании, сервер не обрабатывает 😕
+              </Typography>
+            )}
+            
           </FormControl>
-
 
           <FormControl fullWidth>
             
@@ -237,7 +232,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
               label="Приоритет"
             >
               {['Low', 'Medium', 'High'].map((priority) => (
-                
                 <MenuItem key={priority} value={priority}>
                   {priority}
                 </MenuItem>
@@ -245,7 +239,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             </Select>
 
           </FormControl>
-
 
           <FormControl fullWidth>
             
@@ -260,11 +253,9 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
               label="Статус"
             >
               {(['To do', 'In progress', 'Done'] as DisplayStatus[]).map((status) => (
-                
                 <MenuItem key={status} value={status}>
                   {status}
                 </MenuItem>
-
               ))}
             </Select>
 
@@ -300,8 +291,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
             </Select>
 
           </FormControl>
-
-
+          
           <Box sx={{ ...buttonContainerStyle, justifyContent: showGoToBoardButton ? 'space-between' : 'center' }}>
             {showGoToBoardButton ? (
               <Button
@@ -312,7 +302,6 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
                 Перейти на доску
               </Button>
             ) : null}
-            
             <Button
               variant="contained"
               onClick={handleSubmit}
@@ -321,7 +310,7 @@ export default function TaskFormModal({ open, onClose, task, boardId, onSave }: 
               {isEditMode ? 'Обновить' : 'Создать'}
             </Button>
           </Box>
-
+          
         </Box>
       </Box>
     </Modal>

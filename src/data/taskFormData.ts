@@ -1,3 +1,5 @@
+import { ServerStatus } from '../utils/statusMapping';
+
 export interface Board {
   id: number;
   name: string;
@@ -19,6 +21,6 @@ export interface Task {
   boardId: number;
   boardName?: string;
   priority: 'Low' | 'Medium' | 'High';
-  status: 'Backlog' | 'InProgress' | 'Done'; // Серверный статус
+  status: ServerStatus;
   assignee: User;
 }

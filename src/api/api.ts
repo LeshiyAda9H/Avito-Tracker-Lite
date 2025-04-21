@@ -29,21 +29,24 @@ interface UpdateTaskRequest {
   status?: 'Backlog' | 'InProgress' | 'Done';
 }
 
+// Интерфейс для ответа сервера
+interface ServerResponse<T> {
+  data?: T;
+}
+
 // Получение списка задач
 export const fetchTasks = async (): Promise<Task[]> => {
   try {
-    const response = await apiClient.get('/tasks');
+    const response = await apiClient.get<ServerResponse<Task[]>>('/tasks');
     const data = response.data;
-    
-    // Проверяем, что response.data имеет поле data и это массив
+
     if (data && Array.isArray(data.data)) {
       return data.data;
     }
-    
+
     console.warn('Ответ API /tasks не содержит массив в поле data:', data);
     return [];
-  } 
-  catch (error) {
+  } catch (error) {
     console.error('Ошибка при загрузке задач:', error);
     return [];
   }
@@ -51,14 +54,35 @@ export const fetchTasks = async (): Promise<Task[]> => {
 
 // Получение задачи по ID
 export const fetchTaskById = async (taskId: number): Promise<Task> => {
-  const response = await apiClient.get<Task>(`/tasks/${taskId}`);
-  return response.data;
+  const response = await apiClient.get<ServerResponse<Task>>(`/tasks/${taskId}`);
+  const taskResponse = response.data;
+
+  const task = taskResponse.data;
+
+  if (!task || !task.id) {
+    throw new Error('Invalid task data received from server: missing task or task ID');
+  }
+
+  return task;
 };
 
 // Создание новой задачи
 export const createTask = async (task: CreateTaskRequest): Promise<Task> => {
-  const response = await apiClient.post<Task>('/tasks/create', task);
-  return response.data;
+  const desiredStatus = task.status;
+
+  const response = await apiClient.post<ServerResponse<{ id: number }>>('/tasks/create', task);
+  const createdTaskResponse = response.data;
+
+  if (createdTaskResponse && createdTaskResponse.data && typeof createdTaskResponse.data.id === 'number') {
+    const taskId = createdTaskResponse.data.id;
+
+    await updateTaskStatus(taskId, desiredStatus);
+
+    const fullTask = await fetchTaskById(taskId);
+    return fullTask;
+  }
+
+  throw new Error('Invalid response from server: missing task ID');
 };
 
 // Обновление задачи
@@ -74,17 +98,16 @@ export const updateTaskStatus = async (taskId: number, status: Task['status']): 
 // Получение списка досок
 export const fetchBoards = async (): Promise<Board[]> => {
   try {
-    const response = await apiClient.get('/boards');
+    const response = await apiClient.get<ServerResponse<Board[]>>('/boards');
     const data = response.data;
-    
+
     if (Array.isArray(data.data)) {
       return data.data;
     }
 
     console.warn('Ответ API /boards не содержит массив в поле data:', data);
     return [];
-  } 
-  catch (error) {
+  } catch (error) {
     console.error('Ошибка при загрузке досок:', error);
     return [];
   }
@@ -93,17 +116,16 @@ export const fetchBoards = async (): Promise<Board[]> => {
 // Получение задач доски
 export const fetchTasksOnBoard = async (boardId: number): Promise<Task[]> => {
   try {
-    const response = await apiClient.get(`/boards/${boardId}`);
+    const response = await apiClient.get<ServerResponse<Task[]>>(`/boards/${boardId}`);
     const data = response.data;
-    
+
     if (Array.isArray(data.data)) {
       return data.data;
     }
-    
+
     console.warn('Ответ API /boards/{boardId} не содержит массив в поле data:', data);
     return [];
-  } 
-  catch (error) {
+  } catch (error) {
     console.error('Ошибка при загрузке задач доски:', error);
     return [];
   }
@@ -112,16 +134,15 @@ export const fetchTasksOnBoard = async (boardId: number): Promise<Task[]> => {
 // Получение списка пользователей
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const response = await apiClient.get('/users');
+    const response = await apiClient.get<ServerResponse<User[]>>('/users');
     const data = response.data;
-    
+
     if (Array.isArray(data.data)) {
       return data.data;
     }
     console.warn('Ответ API /users не содержит массив в поле data:', data);
     return [];
-  } 
-  catch (error) {
+  } catch (error) {
     console.error('Ошибка при загрузке пользователей:', error);
     return [];
   }
