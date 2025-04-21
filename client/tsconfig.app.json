@@ -40,7 +40,7 @@
     "noUncheckedSideEffectImports": true
   },
   // Включение всех файлов в папке src
-  "include": ["src"]
+  "include": ["src", "**/*.test.ts", "**/*.test.tsx"]
 }
 
 /*

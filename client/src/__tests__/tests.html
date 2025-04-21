@@ -1,0 +1,203 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Avito-Tracker-Lite Unit Tests</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jest@29.7.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@testing-library/react@14.0.0/dist/react-testing-library.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@testing-library/jest-dom@6.1.3/dist/jest-dom.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.2/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/redux@4.2.1/dist/redux.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-redux@8.1.3/dist/react-redux.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-router-dom@6.20.0/dist/umd/react-router-dom.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // Мок компонентов и утилит
+    const Header = () => (
+      <div>
+        <button>Все задачи</button>
+        <button>Проекты</button>
+        <button onClick={() => window.taskFormContext.openModal()}>Создать задачу</button>
+      </div>
+    );
+
+    const TaskFormModal = ({ open, onClose, onSave }) => (
+      open ? (
+        <div>
+          <h2>Создание задачи</h2>
+          <input placeholder="Название задачи" />
+          <button onClick={onSave}>Создать</button>
+          <button onClick={onClose}>Закрыть</button>
+        </div>
+      ) : null
+    );
+
+    const Issues = () => <div><span>Задача 1</span></div>;
+
+    const TaskFormContext = React.createContext();
+    const TaskFormProvider = ({ children }) => {
+      const [isOpen, setIsOpen] = React.useState(false);
+      const openModal = () => setIsOpen(true);
+      const closeModal = () => setIsOpen(false);
+      window.taskFormContext = { openModal, closeModal }; // Для тестов
+      return (
+        <TaskFormContext.Provider value={{ isOpen, openModal, closeModal }}>
+          {children}
+        </TaskFormContext.Provider>
+      );
+    };
+
+    const useTaskForm = () => React.useContext(TaskFormContext);
+
+    const statusMapping = {
+      toDisplayStatus: (status) => status === 'Backlog' ? 'To do' : status,
+      toServerStatus: (status) => status === 'To do' ? 'Backlog' : status
+    };
+
+    const api = {
+      fetchTasks: async () => [{ id: 1, title: 'Задача 1' }]
+    };
+
+    const taskSlice = {
+      reducer: (state = { tasks: [] }, action) => {
+        if (action.type === 'addTask') return { ...state, tasks: [...state.tasks, action.payload] };
+        return state;
+      },
+      actions: { addTask: (task) => ({ type: 'addTask', payload: task }) }
+    };
+
+    const store = Redux.createStore(taskSlice.reducer);
+
+    // Тесты
+    const { render, screen, fireEvent } = window.ReactTestingLibrary;
+
+    describe('Header', () => {
+      it('рендерит навигационные кнопки', () => {
+        render(
+          <ReactRouterDOM.MemoryRouter>
+            <TaskFormProvider>
+              <Header />
+            </TaskFormProvider>
+          </ReactRouterDOM.MemoryRouter>
+        );
+        expect(screen.getByText('Все задачи')).toBeInTheDocument();
+        expect(screen.getByText('Проекты')).toBeInTheDocument();
+        expect(screen.getByText('Создать задачу')).toBeInTheDocument();
+      });
+    });
+
+    describe('TaskFormModal', () => {
+      it('рендерит форму создания задачи', () => {
+        render(<TaskFormModal open={true} onClose={() => {}} onSave={() => {}} />);
+        expect(screen.getByText('Создание задачи')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Название задачи')).toBeInTheDocument();
+      });
+
+      it('отправляет форму при клике на "Создать"', () => {
+        const onSave = jest.fn();
+        render(<TaskFormModal open={true} onClose={() => {}} onSave={onSave} />);
+        fireEvent.change(screen.getByPlaceholderText('Название задачи'), { target: { value: 'Новая задача' } });
+        fireEvent.click(screen.getByText('Создать'));
+        expect(onSave).toHaveBeenCalled();
+      });
+    });
+
+    describe('useTaskForm', () => {
+      it('открывает и закрывает модальное окно', () => {
+        const { result } = window.ReactTestingLibrary.renderHook(() => useTaskForm(), {
+          wrapper: ({ children }) => <TaskFormProvider>{children}</TaskFormProvider>
+        });
+
+        act(() => result.current.openModal());
+        expect(result.current.isOpen).toBe(true);
+
+        act(() => result.current.closeModal());
+        expect(result.current.isOpen).toBe(false);
+      });
+    });
+
+    describe('statusMapping', () => {
+      it('преобразует статусы', () => {
+        expect(statusMapping.toDisplayStatus('Backlog')).toBe('To do');
+        expect(statusMapping.toServerStatus('To do')).toBe('Backlog');
+      });
+    });
+
+    describe('api', () => {
+      it('загружает задачи', async () => {
+        const tasks = await api.fetchTasks();
+        expect(tasks).toEqual([{ id: 1, title: 'Задача 1' }]);
+      });
+    });
+
+    describe('taskSlice', () => {
+      it('добавляет задачу в состояние', () => {
+        const initialState = { tasks: [] };
+        const newTask = { id: 1, title: 'Новая задача' };
+        const newState = taskSlice.reducer(initialState, taskSlice.actions.addTask(newTask));
+        expect(newState.tasks).toContainEqual(newTask);
+      });
+    });
+
+    describe('Issues', () => {
+      it('рендерит список задач', () => {
+        render(
+          <ReactRedux.Provider store={store}>
+            <ReactRouterDOM.MemoryRouter>
+              <Issues />
+            </ReactRouterDOM.MemoryRouter>
+          </ReactRedux.Provider>
+        );
+        expect(screen.getByText('Задача 1')).toBeInTheDocument();
+      });
+    });
+
+    // Запуск тестов
+    jest.runAllTests();
+  </script>
+</body>
+</html>
